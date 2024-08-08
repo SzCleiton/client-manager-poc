@@ -46,3 +46,5 @@ Ao final, para entregar seu projeto, nos envie:
 
 Agradecemos pela sua colaboração!
 
+## Fiz uma validação no CFP e CNPJ, que não aceita dados ficticios, somente dados reais.
+#### Fiz também as validações no html mesmo, de forma muito simples somente para ficar bonito para voces verem, normalmente eu faço outras funcões e chamo elas no script.

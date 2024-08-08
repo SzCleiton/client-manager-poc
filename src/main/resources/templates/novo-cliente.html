@@ -37,7 +37,7 @@
             flex-direction: column;
         }
 
-        input[type="text"], input[type="checkbox"] {
+        input[type="text"], input[type="checkbox"], select {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -45,7 +45,7 @@
             margin-top: 5px;
         }
 
-        input[type="text"]:focus, input[type="checkbox"]:focus {
+        input[type="text"]:focus, input[type="checkbox"]:focus, select:focus {
             border-color: #007bff;
             outline: none;
         }
@@ -81,6 +81,12 @@
     <label>Nome Fantasia:
         <input type="text" th:field="*{nomeFantasia}" />
     </label>
+    <label>Tipo de Documento:
+        <select id="documentType">
+            <option value="cpf">CPF</option>
+            <option value="cnpj">CNPJ</option>
+        </select>
+    </label>
     <label>CNPJ/CPF:
         <input type="text" th:field="*{cnpjCpf}" id="cnpjCpf" />
         <div id="cnpjCpfError" class="error"></div>
@@ -96,25 +102,193 @@
 </form>
 
 <script>
+    const PHONE_MAX_LENGTH = 11; // Limite máximo de caracteres para o telefone (considerando formatação)
+    const CPF_LENGTH = 11; // Comprimento máximo de caracteres para CPF
+    const CNPJ_LENGTH = 14; // Comprimento máximo de caracteres para CNPJ
+
+    // Função para formatar telefone
+    function formatPhoneNumber(value) {
+        value = value.replace(/\D/g, '');
+        if (value.length <= 10) {
+            return value.replace(/(\d{5})(\d{4})/, '$1-$2');
+        } else {
+            return value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+        }
+    }
+
+    // Função para formatar CPF
+    function formatCPF(value) {
+        value = value.replace(/\D/g, '');
+        return value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+
+    // Função para formatar CNPJ
+    function formatCNPJ(value) {
+        value = value.replace(/\D/g, '');
+        return value.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+
+    // Função para validar CPF
+    function isValidCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        if (cpf.length !== CPF_LENGTH || /^(\d)\1{10}$/.test(cpf)) {
+            return false;
+        }
+        let sum = 0;
+        let remainder;
+        for (let i = 1; i <= 9; i++) {
+            sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+        }
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) {
+            remainder = 0;
+        }
+        if (remainder !== parseInt(cpf.substring(9, 10))) {
+            return false;
+        }
+        sum = 0;
+        for (let i = 1; i <= 10; i++) {
+            sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+        }
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) {
+            remainder = 0;
+        }
+        return remainder === parseInt(cpf.substring(10, 11));
+    }
+
+    // Função para validar CNPJ
+    function isValidCNPJ(cnpj) {
+        cnpj = cnpj.replace(/\D/g, '');
+        if (cnpj.length !== CNPJ_LENGTH || /^(\d)\1{13}$/.test(cnpj)) {
+            return false;
+        }
+        let length = cnpj.length - 2;
+        let numbers = cnpj.substring(0, length);
+        let digits = cnpj.substring(length);
+        let sum = 0;
+        let pos = length - 7;
+        for (let i = length; i >= 1; i--) {
+            sum += numbers.charAt(length - i) * pos--;
+            if (pos < 2) {
+                pos = 9;
+            }
+        }
+        let remainder = sum % 11;
+        if (remainder < 2) {
+            remainder = 0;
+        } else {
+            remainder = 11 - remainder;
+        }
+        if (remainder !== parseInt(digits.charAt(0))) {
+            return false;
+        }
+        length = length + 1;
+        numbers = cnpj.substring(0, length);
+        sum = 0;
+        pos = length - 7;
+        for (let i = length; i >= 1; i--) {
+            sum += numbers.charAt(length - i) * pos--;
+            if (pos < 2) {
+                pos = 9;
+            }
+        }
+        remainder = sum % 11;
+        if (remainder < 2) {
+            remainder = 0;
+        } else {
+            remainder = 11 - remainder;
+        }
+        return remainder === parseInt(digits.charAt(1));
+    }
+
+    // Evento para validar telefone
     document.getElementById('telefone').addEventListener('input', function() {
-        const telefone = this.value;
+        let telefone = this.value;
         const telefoneError = document.getElementById('telefoneError');
-        if (/[^0-9]/.test(telefone)) {
-            telefoneError.textContent = 'O telefone deve conter apenas números.';
-            this.value = telefone.replace(/[^0-9]/g, ''); // Remove caracteres não numéricos
+
+        telefone = telefone.replace(/\D/g, '');
+        if (telefone.length > PHONE_MAX_LENGTH) {
+            telefone = telefone.substring(0, PHONE_MAX_LENGTH);
+        }
+
+        const formattedTelefone = formatPhoneNumber(telefone);
+        if (!/^\(\d{2}\) \d{5}-\d{4}$|^\d{5}-\d{4}$/.test(formattedTelefone)) {
+            telefoneError.textContent = 'Formato de telefone inválido.';
         } else {
             telefoneError.textContent = '';
         }
+
+        this.value = formattedTelefone;
     });
 
+    // Evento para validar CPF/CNPJ
     document.getElementById('cnpjCpf').addEventListener('input', function() {
-        const cnpjCpf = this.value;
+        const documentType = document.getElementById('documentType').value;
+        let cnpjCpf = this.value;
         const cnpjCpfError = document.getElementById('cnpjCpfError');
-        if (/[^0-9]/.test(cnpjCpf)) {
-            cnpjCpfError.textContent = 'O CNPJ/CPF deve conter apenas números.';
-            this.value = cnpjCpf.replace(/[^0-9]/g, ''); // Remove caracteres não numéricos
+
+        cnpjCpf = cnpjCpf.replace(/\D/g, '');
+
+        let isValid;
+        if (documentType === 'cpf') {
+            isValid = cnpjCpf.length <= CPF_LENGTH ? isValidCPF(cnpjCpf) : false;
+            this.value = formatCPF(cnpjCpf);
+        } else {
+            isValid = cnpjCpf.length <= CNPJ_LENGTH ? isValidCNPJ(cnpjCpf) : false;
+            this.value = formatCNPJ(cnpjCpf);
+        }
+
+        if (documentType === 'cpf' && cnpjCpf.length > CPF_LENGTH) {
+            cnpjCpf = cnpjCpf.substring(0, CPF_LENGTH);
+        } else if (documentType === 'cnpj' && cnpjCpf.length > CNPJ_LENGTH) {
+            cnpjCpf = cnpjCpf.substring(0, CNPJ_LENGTH);
+        }
+
+        if (!isValid) {
+            cnpjCpfError.textContent = documentType === 'cpf' ? 'CPF inválido.' : 'CNPJ inválido.';
         } else {
             cnpjCpfError.textContent = '';
+        }
+
+        this.value = documentType === 'cpf' ? formatCPF(cnpjCpf) : formatCNPJ(cnpjCpf);
+    });
+
+    // Atualizar a validação e a formatação quando o tipo de documento for alterado
+    document.getElementById('documentType').addEventListener('change', function() {
+        const documentType = this.value;
+        const cnpjCpfInput = document.getElementById('cnpjCpf');
+        const cnpjCpfError = document.getElementById('cnpjCpfError');
+
+        cnpjCpfInput.value = '';
+        cnpjCpfError.textContent = '';
+
+        cnpjCpfInput.removeEventListener('input', handleCNPJCPFInput);
+        cnpjCpfInput.addEventListener('input', handleCNPJCPFInput);
+
+        function handleCNPJCPFInput() {
+            let cnpjCpf = this.value;
+            cnpjCpf = cnpjCpf.replace(/\D/g, '');
+            let isValid;
+            if (documentType === 'cpf') {
+                isValid = cnpjCpf.length <= CPF_LENGTH ? isValidCPF(cnpjCpf) : false;
+            } else {
+                isValid = cnpjCpf.length <= CNPJ_LENGTH ? isValidCNPJ(cnpjCpf) : false;
+            }
+
+            if (documentType === 'cpf' && cnpjCpf.length > CPF_LENGTH) {
+                cnpjCpf = cnpjCpf.substring(0, CPF_LENGTH);
+            } else if (documentType === 'cnpj' && cnpjCpf.length > CNPJ_LENGTH) {
+                cnpjCpf = cnpjCpf.substring(0, CNPJ_LENGTH);
+            }
+
+            if (!isValid) {
+                cnpjCpfError.textContent = documentType === 'cpf' ? 'CPF inválido.' : 'CNPJ inválido.';
+            } else {
+                cnpjCpfError.textContent = '';
+            }
+
+            this.value = documentType === 'cpf' ? formatCPF(cnpjCpf) : formatCNPJ(cnpjCpf);
         }
     });
 </script>

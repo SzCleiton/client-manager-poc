@@ -64,11 +64,17 @@
         button:hover {
             background-color: #0056b3;
         }
+
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 <h1>Novo Cliente</h1>
-<form th:action="@{/clientes}" th:object="${cliente}" method="post">
+<form th:action="@{/clientes}" th:object="${cliente}" method="post" id="clienteForm">
     <label>Razão Social:
         <input type="text" th:field="*{razaoSocial}" />
     </label>
@@ -76,15 +82,41 @@
         <input type="text" th:field="*{nomeFantasia}" />
     </label>
     <label>CNPJ/CPF:
-        <input type="text" th:field="*{cnpjCpf}" />
+        <input type="text" th:field="*{cnpjCpf}" id="cnpjCpf" />
+        <div id="cnpjCpfError" class="error"></div>
     </label>
     <label>Telefone:
-        <input type="text" th:field="*{telefone}" />
+        <input type="text" th:field="*{telefone}" id="telefone" />
+        <div id="telefoneError" class="error"></div>
     </label>
     <label>Status:
         <input type="checkbox" th:field="*{status}" />
     </label>
     <button type="submit">Salvar</button>
 </form>
+
+<script>
+    document.getElementById('telefone').addEventListener('input', function() {
+        const telefone = this.value;
+        const telefoneError = document.getElementById('telefoneError');
+        if (/[^0-9]/.test(telefone)) {
+            telefoneError.textContent = 'O telefone deve conter apenas números.';
+            this.value = telefone.replace(/[^0-9]/g, ''); // Remove caracteres não numéricos
+        } else {
+            telefoneError.textContent = '';
+        }
+    });
+
+    document.getElementById('cnpjCpf').addEventListener('input', function() {
+        const cnpjCpf = this.value;
+        const cnpjCpfError = document.getElementById('cnpjCpfError');
+        if (/[^0-9]/.test(cnpjCpf)) {
+            cnpjCpfError.textContent = 'O CNPJ/CPF deve conter apenas números.';
+            this.value = cnpjCpf.replace(/[^0-9]/g, ''); // Remove caracteres não numéricos
+        } else {
+            cnpjCpfError.textContent = '';
+        }
+    });
+</script>
 </body>
 </html>
